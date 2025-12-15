@@ -204,6 +204,23 @@ body.is-running .big-start {
   color: #fff;
 }
 
+
+/* === Breathing Architecture === */
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 1; filter: brightness(1); }
+  50% { transform: scale(1.02); opacity: 0.95; filter: brightness(1.05); }
+}
+
+body.is-running[data-mode="rest"] .wrap {
+  animation: breathe 6s ease-in-out infinite;
+}
+
+/* 儀表感字體優化 */
+.time {
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+}
+
 </style>
 </head>
 <body data-mode="rest">
@@ -407,7 +424,7 @@ body.is-running .big-start {
       pause(); statusText.textContent='完成'; render();
       const mode=body.getAttribute('data-mode');
       try{ if(localStorage.getItem('crastina_vibrate')==='1' && navigator.vibrate) navigator.vibrate([220,100,220,80,300]); }catch(_){}
-      beep(mode); showDone(); showNotes(mode, plannedDurationText); return;
+      playResetNoise(1.5); showDone(); showNotes(mode, plannedDurationText); return;
     }
     render();
   }
