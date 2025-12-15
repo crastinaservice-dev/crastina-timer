@@ -8,55 +8,67 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#050507">
   <style>
-    /* === Crastina Visual System v3.6 (Fixed Contrast) === */
+    /* === Crastina V3.7 (Safe Mode) === */
     :root {
       --bg-deep: #050507;
       --bg-surface: rgba(255, 255, 255, 0.03);
       --border-light: rgba(255, 255, 255, 0.08);
       --text-primary: #e0e0e0;
-      --text-muted: #666;
-      --brand-reset-bg: #e6e2d6; /* Reset 模式的底色 */
-      --brand-reset-text: #3e3b34; /* Reset 模式的深色文字 */
-      
-      --fg: var(--text-primary);
-      --muted: var(--text-muted);
+      --text-muted: #888;
+      --brand-reset-bg: #e6e2d6;
+      --brand-reset-text: #3e3b34;
     }
 
     * { box-sizing: border-box; }
-    html, body { height: 100%; }
+    html, body { height: 100%; margin: 0; padding: 0; }
     
     body {
+      /* 安全 fallback 顏色，防止變數失效時一片白 */
+      background-color: #050507; 
+      color: #e0e0e0;
+      
       background-color: var(--bg-deep);
       background-image: linear-gradient(to bottom, #0a0a0f, #000);
-      color: var(--text-primary); /* 預設深色模式文字 */
+      color: var(--text-primary);
+      
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      margin: 0;
-      display: grid;
-      place-items: center;
+      display: flex;
+      justify-content: center;
+      align-items: center;
       padding: 18px;
       overflow-x: hidden;
       transition: background 1.2s ease, color 0.8s ease;
     }
 
-    /* === RESET 模式 (原 Rest) === */
+    /* === RESET 模式 === */
     body[data-mode="rest"] {
+      background-color: #e6e2d6; /* Fallback */
       background-color: var(--brand-reset-bg);
       background-image: linear-gradient(to bottom, #efece4, #e3dfd2);
-      color: var(--brand-reset-text); /* 關鍵：切換為深色文字 */
+      color: #3e3b34; /* Fallback */
+      color: var(--brand-reset-text);
     }
     
-    body[data-mode="rest"] :is(.display, .note-card, .segmented) {
+    body[data-mode="rest"] .display,
+    body[data-mode="rest"] .note-card,
+    body[data-mode="rest"] .segmented {
       background: rgba(255, 255, 255, 0.4);
       border-color: rgba(0, 0, 0, 0.08);
       box-shadow: 0 10px 40px rgba(189, 183, 169, 0.4);
     }
+    /* 修正按鈕在亮色模式下的顏色 */
     body[data-mode="rest"] .seg-btn { color: #666; }
     body[data-mode="rest"] .seg-btn.right { color: #000; }
-    body[data-mode="rest"] .time { text-shadow: none; color: #2a2a2a; }
+    body[data-mode="rest"] .time { color: #2a2a2a; text-shadow: none; }
     body[data-mode="rest"] .big-start { border-color: #3e3b34; color: #3e3b34; }
     body[data-mode="rest"] .big-start:hover { background: #3e3b34; color: #f0f0f0; }
 
-    .wrap { width: min(1100px, 100%); padding: 8px 6px; }
+    /* === 核心容器 === */
+    .wrap { 
+      width: 100%; 
+      max-width: 1100px; 
+      padding: 10px;
+    }
     
     .brand-title {
       text-align: center;
@@ -64,6 +76,7 @@
       letter-spacing: 0.3em;
       font-size: 14px;
       margin-bottom: 20px;
+      color: #666;
       color: var(--text-muted);
       text-transform: uppercase;
       opacity: 0.6;
@@ -81,8 +94,8 @@
     .segmented {
       position: relative;
       display: inline-flex;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-light);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 999px;
       padding: 4px;
       backdrop-filter: blur(10px);
@@ -107,10 +120,10 @@
     @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
 
     .display {
-      background: var(--bg-surface);
+      background: rgba(255, 255, 255, 0.03);
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
-      border: 1px solid var(--border-light);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 32px;
       padding: 48px 24px;
       text-align: center;
@@ -130,6 +143,7 @@
 
     .time {
       font-family: 'Courier New', monospace;
+      font-size: 80px; /* Fallback for clamp */
       font-size: clamp(64px, 15vw, 130px);
       font-weight: 300;
       letter-spacing: -4px;
@@ -138,12 +152,12 @@
       margin-bottom: 8px;
     }
 
-    .status { font-size: 13px; color: var(--text-muted); letter-spacing: 1px; min-height: 20px; }
+    .status { font-size: 13px; color: #888; letter-spacing: 1px; min-height: 20px; }
 
     .inputs { margin-top: 24px; display: flex; gap: 12px; justify-content: center; opacity: 0.5; transition: opacity 0.3s; }
     .inputs:hover, .inputs:focus-within { opacity: 1; }
     .field input {
-      background: transparent; border: 0; border-bottom: 1px solid var(--text-muted);
+      background: transparent; border: 0; border-bottom: 1px solid #666;
       color: inherit; font-size: 18px; width: 60px; text-align: center; padding: 4px;
       font-family: inherit;
     }
@@ -152,8 +166,8 @@
     .big-start {
       width: 140px; height: 140px; border-radius: 50%;
       background: transparent;
-      border: 1px solid var(--text-primary);
-      color: var(--text-primary);
+      border: 1px solid currentColor;
+      color: inherit;
       font-size: 14px; font-weight: 700; letter-spacing: 1px;
       cursor: pointer; transition: all 0.4s ease;
       display: grid; place-items: center;
@@ -162,7 +176,6 @@
     body.is-running .big-start { border-style: double; border-width: 4px; animation: pulse 2s infinite; }
     
     .done-wrap { margin-top: 24px; min-height: 50px; }
-    /* 修正點：color 改為 inherit，讓它自動跟隨 body 的深淺設定 */
     .done-line {
       font-size: 15px; line-height: 1.6; color: inherit; 
       opacity: 0; transform: translateY(10px); transition: all 1s ease;
@@ -180,7 +193,7 @@
     .sbtn:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); }
 
     .note-card {
-      background: var(--bg-surface); border: 1px solid var(--border-light);
+      background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 20px; padding: 20px;
     }
     .note-text {
@@ -189,9 +202,9 @@
       resize: none; min-height: 120px; outline: none;
       font-family: inherit;
     }
-    .note-meta { font-size: 11px; color: var(--text-muted); margin-top: 8px; display: block; }
+    .note-meta { font-size: 11px; color: #888; margin-top: 8px; display: block; }
     
-    .utility-row { display: flex; gap: 16px; justify-content: flex-end; font-size: 12px; color: var(--text-muted); align-items: center; }
+    .utility-row { display: flex; gap: 16px; justify-content: flex-end; font-size: 12px; color: #888; align-items: center; }
     .utility-row input { margin-right: 4px; }
     
     footer { margin-top: 40px; opacity: 0.3; font-size: 11px; text-align: center; }
@@ -255,7 +268,8 @@
   </div>
 
 <script>
-(function(){
+window.addEventListener('DOMContentLoaded', function() {
+  // 嚴格確保 DOM 載入後才執行，防止白屏
   const $ = s => document.querySelector(s);
   const body = document.body;
   const timeText = $('#timeText'), statusText = $('#statusText');
@@ -265,6 +279,7 @@
   
   const MODE = { FOCUS: 'focus', REST: 'rest' };
   
+  // Audio Engine: Crastina Flow Tone (Arpeggio)
   let audioCtx = null;
   function getAudioCtx() { 
     if(!audioCtx) {
@@ -286,7 +301,6 @@
     } catch(e) {}
   }
 
-  // Crastina Flow Tone (Arpeggio)
   function playArpeggio() {
     const ctx = getAudioCtx();
     if(ctx.state === 'suspended') ctx.resume();
@@ -438,7 +452,7 @@
   });
 
   updateDisplay();
-})();
+});
 </script>
 </body>
 </html>
