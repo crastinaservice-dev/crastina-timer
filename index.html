@@ -279,4 +279,201 @@
   const $ = s => document.querySelector(s);
   const body = document.body;
   const timeText = $('#timeText'), statusText = $('#statusText');
-  const mins = $('#mins'), secs = $('#secs'),
+  const mins = $('#mins'), secs = $('#secs'), startPauseBtn = $('#startPauseBtn');
+  const focusModeBtn = $('#focusModeBtn'), restModeBtn = $('#restModeBtn'), seg = $('#segmented');
+  const doneText = $('#doneText');
+  
+  const MODE = { FOCUS: 'focus', REST: 'rest' };
+  
+  // === Audio Engine (Brown Noise) - 強制喚醒版 ===
+  let audioCtx = null;
+  
+  function getAudioCtx() { 
+    if(!audioCtx) {
+      // 支援各瀏覽器前綴
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioContext();
+    }
+    return audioCtx; 
+  }
+
+  // 核心修正：強制喚醒函數
+  function wakeUpAudioEngine() {
+    const ctx = getAudioCtx();
+    if (ctx.state === 'suspended') {
+      ctx.resume().then(() => {
+        console.log('Audio Engine Woke Up');
+      });
+    }
+    // iOS Safari 密技：播放一個極短的無聲片段，騙過瀏覽器以為我們已經開始播放音樂
+    // 這能防止後續的 playResetNoise 被擋
+    try {
+        const buffer = ctx.createBuffer(1, 1, 22050);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start(0);
+    } catch(e) {}
+  }
+
+  function playResetNoise(duration = 2.0) {
+    const ctx = getAudioCtx();
+    // 再次檢查並嘗試喚醒
+    if(ctx.state === 'suspended') ctx.resume();
+
+    const bufferSize = ctx.sampleRate * duration;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+
+    // Brown Noise 算法
+    let lastOut = 0;
+    for (let i = 0; i < bufferSize; i++) {
+      const white = Math.random() * 2 - 1;
+      data[i] = (lastOut + (0.02 * white)) / 1.02;
+      lastOut = data[i];
+      data[i] *= 3.5; 
+    }
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.1); 
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+
+    noise.connect(gain);
+    gain.connect(ctx.destination);
+    noise.start();
+  }
+
+  // 試音按鈕：也綁定喚醒機制
+  $('#soundTestBtn').addEventListener('click', () => {
+      wakeUpAudioEngine();
+      playResetNoise(1.5);
+  });
+
+  // === 模式切換邏輯 ===
+  function setMode(mode){ 
+    body.setAttribute('data-mode', mode); 
+    seg.dataset.active = mode; 
+    if(mode === MODE.REST) statusText.textContent = 'READY TO RESET';
+    else statusText.textContent = 'READY TO OUTPUT';
+  }
+  
+  focusModeBtn.addEventListener('click', () => setMode(MODE.FOCUS));
+  restModeBtn.addEventListener('click', () => setMode(MODE.REST));
+  setMode(MODE.REST);
+
+  // === 計時器邏輯 ===
+  let total = 300, timer = null, running = false, endAt = null;
+
+  function format(s) {
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  }
+
+  function updateDisplay() {
+      timeText.textContent = format(total);
+      document.title = running ? `${format(total)} - CRASTINA` : 'CRASTINA';
+  }
+
+  const shortcutVals = [5, 10, 25, 45];
+  const scWrap = $('#shortcuts');
+  shortcutVals.forEach(m => {
+      const b = document.createElement('button');
+      b.className = 'sbtn';
+      b.textContent = m;
+      b.onclick = () => { 
+          mins.value = m; secs.value = 0; 
+          total = m * 60; 
+          updateDisplay(); 
+          if(!running) start(); 
+      };
+      scWrap.appendChild(b);
+  });
+
+  [mins, secs].forEach(input => input.addEventListener('change', () => {
+      total = parseInt(mins.value||0)*60 + parseInt(secs.value||0);
+      updateDisplay();
+  }));
+
+  function start() {
+      if(total <= 0) return;
+      
+      // === 關鍵修正點：在這裡喚醒音效引擎 ===
+      wakeUpAudioEngine();
+      // ===================================
+
+      running = true;
+      endAt = Date.now() + total * 1000;
+      body.classList.add('is-running');
+      startPauseBtn.textContent = 'PAUSE';
+      statusText.textContent = (body.getAttribute('data-mode') === MODE.REST) ? 'BREATHE...' : 'FLOWING...';
+      doneText.classList.remove('show');
+      
+      timer = setInterval(() => {
+          const left = Math.ceil((endAt - Date.now()) / 1000);
+          if (left <= 0) {
+              finish();
+          } else {
+              total = left;
+              updateDisplay();
+          }
+      }, 1000);
+  }
+
+  function pause() {
+      running = false;
+      clearInterval(timer);
+      body.classList.remove('is-running');
+      startPauseBtn.textContent = 'RESUME';
+      statusText.textContent = 'SUSPENDED';
+  }
+
+  function finish() {
+      running = false;
+      clearInterval(timer);
+      total = 0;
+      updateDisplay();
+      body.classList.remove('is-running');
+      startPauseBtn.textContent = 'INITIATE';
+      statusText.textContent = 'SEQUENCE COMPLETE';
+
+      if($('#vibrateToggle').checked && navigator.vibrate) navigator.vibrate([100, 50, 100]);
+      
+      // 這裡播放聲音
+      playResetNoise(2.5);
+
+      const mode = body.getAttribute('data-mode');
+      let msg = "";
+      if (mode === MODE.REST) {
+          msg = "節奏已重置。<br>現在是使用 <b>Reset Oil</b> 鎖住平靜狀態的最佳時刻。";
+      } else {
+          msg = "輸出暫告一段落。<br>建議切換至 <b>RESET</b> 模式進行 5 分鐘的神經系統冷卻。";
+      }
+      doneText.innerHTML = msg;
+      doneText.classList.add('show');
+  }
+
+  startPauseBtn.addEventListener('click', () => {
+      if(running) pause();
+      else start();
+  });
+  
+  // 簡易筆記功能
+  $('#saveNoteBtn').addEventListener('click', () => {
+     const txt = $('#noteText').value;
+     if(!txt) return;
+     const div = document.createElement('div');
+     div.textContent = `• ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} ${txt}`;
+     $('#noteList').prepend(div);
+     $('#noteText').value = '';
+     $('#noteHint').textContent = 'Saved.';
+     setTimeout(() => $('#noteHint').textContent = '結束後紀錄', 2000);
+  });
+
+  updateDisplay();
+})();
+</script>
