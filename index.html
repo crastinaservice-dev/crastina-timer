@@ -285,7 +285,7 @@
   
   const MODE = { FOCUS: 'focus', REST: 'rest' };
   
-  // === Audio Engine: The Crastina Resonance (數位共鳴) ===
+  // === Audio Engine: The Ethereal Arpeggio (夢幻琶音) ===
   let audioCtx = null;
   
   function getAudioCtx() { 
@@ -296,12 +296,10 @@
     return audioCtx; 
   }
 
-  // 強制喚醒引擎
   function wakeUpAudioEngine() {
     const ctx = getAudioCtx();
     if (ctx.state === 'suspended') ctx.resume();
     try {
-        // 播放極短無聲，騙過瀏覽器
         const o = ctx.createOscillator();
         const g = ctx.createGain();
         o.connect(g); g.connect(ctx.destination);
@@ -310,48 +308,45 @@
     } catch(e) {}
   }
 
-  // 新版音效：清澈的共鳴聲 (Singing Bowl Style)
-  function playResonance() {
+  // 核心修改：三和絃琶音 (Db Major + Octave)
+  function playArpeggio() {
     const ctx = getAudioCtx();
     if(ctx.state === 'suspended') ctx.resume();
     
     const now = ctx.currentTime;
-    const duration = 4.0; // 尾韻長度
-
-    // 設定三個泛音，模擬敲擊缽或水晶的聲音
-    // 基礎頻率 (Fundamental) + 泛音 (Overtones)
-    const freqs = [440, 880, 1320]; // A4, A5, E6 (和諧的三和弦泛音)
     
-    freqs.forEach((f, i) => {
+    // Db Major: Db4(277.18), F4(349.23), Ab4(415.30) + Db5(554.37)
+    // 加上八度音(Db5)會讓聽感有一種「完成」與「昇華」的感覺
+    const notes = [277.18, 349.23, 415.30, 554.37]; 
+    
+    notes.forEach((freq, index) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         
-        osc.type = 'sine'; // 正弦波最乾淨，沒有雜質
-        osc.frequency.value = f;
+        osc.type = 'sine'; 
+        osc.frequency.value = freq;
         
-        // 微調頻率，製造一點點「波動感」(Beating)
-        if (i > 0) osc.frequency.value += Math.random() * 2 - 1; 
-
         osc.connect(gain);
         gain.connect(ctx.destination);
 
-        // 音量包絡線 (Envelope)
-        // 1. 瞬間極快淡入 (Attack) - 避免爆音
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.15 / (i+1), now + 0.05); // 高頻音量小一點
-        
-        // 2. 緩慢指數淡出 (Decay) - 像鐘聲一樣綿延
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+        // 時間差：每個音間隔 0.18 秒，創造流動感
+        const startTime = now + (index * 0.18);
+        const duration = 2.5; // 每個音的餘韻長度
 
-        osc.start(now);
-        osc.stop(now + duration);
+        // Envelope: 柔和淡入 -> 緩慢淡出
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.12, startTime + 0.05); // Attack
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration); // Release
+
+        osc.start(startTime);
+        osc.stop(startTime + duration);
     });
   }
 
   // 試音
   $('#soundTestBtn').addEventListener('click', () => {
       wakeUpAudioEngine();
-      playResonance();
+      playArpeggio();
   });
 
   // === 模式切換 ===
@@ -386,90 +381,4 @@
       const b = document.createElement('button');
       b.className = 'sbtn';
       b.textContent = m;
-      b.onclick = () => { 
-          mins.value = m; secs.value = 0; 
-          total = m * 60; 
-          updateDisplay(); 
-          if(!running) start(); 
-      };
-      scWrap.appendChild(b);
-  });
-
-  [mins, secs].forEach(input => input.addEventListener('change', () => {
-      total = parseInt(mins.value||0)*60 + parseInt(secs.value||0);
-      updateDisplay();
-  }));
-
-  function start() {
-      if(total <= 0) return;
-      wakeUpAudioEngine(); // 點擊時喚醒
-
-      running = true;
-      endAt = Date.now() + total * 1000;
-      body.classList.add('is-running');
-      startPauseBtn.textContent = 'PAUSE';
-      statusText.textContent = (body.getAttribute('data-mode') === MODE.REST) ? 'BREATHE...' : 'FLOWING...';
-      doneText.classList.remove('show');
-      
-      timer = setInterval(() => {
-          const left = Math.ceil((endAt - Date.now()) / 1000);
-          if (left <= 0) {
-              finish();
-          } else {
-              total = left;
-              updateDisplay();
-          }
-      }, 1000);
-  }
-
-  function pause() {
-      running = false;
-      clearInterval(timer);
-      body.classList.remove('is-running');
-      startPauseBtn.textContent = 'RESUME';
-      statusText.textContent = 'SUSPENDED';
-  }
-
-  function finish() {
-      running = false;
-      clearInterval(timer);
-      total = 0;
-      updateDisplay();
-      body.classList.remove('is-running');
-      startPauseBtn.textContent = 'INITIATE';
-      statusText.textContent = 'SEQUENCE COMPLETE';
-
-      if($('#vibrateToggle').checked && navigator.vibrate) navigator.vibrate([50, 50, 50]); // 震動也改輕一點
-      
-      playResonance(); // 播放共鳴聲
-
-      const mode = body.getAttribute('data-mode');
-      let msg = "";
-      if (mode === MODE.REST) {
-          msg = "節奏已重置。<br>現在是使用 <b>Reset Oil</b> 鎖住平靜狀態的最佳時刻。";
-      } else {
-          msg = "輸出暫告一段落。<br>建議切換至 <b>RESET</b> 模式進行 5 分鐘的神經系統冷卻。";
-      }
-      doneText.innerHTML = msg;
-      doneText.classList.add('show');
-  }
-
-  startPauseBtn.addEventListener('click', () => {
-      if(running) pause();
-      else start();
-  });
-  
-  $('#saveNoteBtn').addEventListener('click', () => {
-     const txt = $('#noteText').value;
-     if(!txt) return;
-     const div = document.createElement('div');
-     div.textContent = `• ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} ${txt}`;
-     $('#noteList').prepend(div);
-     $('#noteText').value = '';
-     $('#noteHint').textContent = 'Saved.';
-     setTimeout(() => $('#noteHint').textContent = '結束後紀錄', 2000);
-  });
-
-  updateDisplay();
-})();
-</script>
+      b.onclick = () =>
