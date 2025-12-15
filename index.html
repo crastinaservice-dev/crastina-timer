@@ -381,4 +381,90 @@
       const b = document.createElement('button');
       b.className = 'sbtn';
       b.textContent = m;
-      b.onclick = () =>
+      b.onclick = () => { 
+          mins.value = m; secs.value = 0; 
+          total = m * 60; 
+          updateDisplay(); 
+          if(!running) start(); 
+      };
+      scWrap.appendChild(b);
+  });
+
+  [mins, secs].forEach(input => input.addEventListener('change', () => {
+      total = parseInt(mins.value||0)*60 + parseInt(secs.value||0);
+      updateDisplay();
+  }));
+
+  function start() {
+      if(total <= 0) return;
+      wakeUpAudioEngine(); 
+
+      running = true;
+      endAt = Date.now() + total * 1000;
+      body.classList.add('is-running');
+      startPauseBtn.textContent = 'PAUSE';
+      statusText.textContent = (body.getAttribute('data-mode') === MODE.REST) ? 'BREATHE...' : 'FLOWING...';
+      doneText.classList.remove('show');
+      
+      timer = setInterval(() => {
+          const left = Math.ceil((endAt - Date.now()) / 1000);
+          if (left <= 0) {
+              finish();
+          } else {
+              total = left;
+              updateDisplay();
+          }
+      }, 1000);
+  }
+
+  function pause() {
+      running = false;
+      clearInterval(timer);
+      body.classList.remove('is-running');
+      startPauseBtn.textContent = 'RESUME';
+      statusText.textContent = 'SUSPENDED';
+  }
+
+  function finish() {
+      running = false;
+      clearInterval(timer);
+      total = 0;
+      updateDisplay();
+      body.classList.remove('is-running');
+      startPauseBtn.textContent = 'INITIATE';
+      statusText.textContent = 'SEQUENCE COMPLETE';
+
+      if($('#vibrateToggle').checked && navigator.vibrate) navigator.vibrate([50, 50, 50]);
+      
+      playArpeggio(); // 播放琶音
+
+      const mode = body.getAttribute('data-mode');
+      let msg = "";
+      if (mode === MODE.REST) {
+          msg = "節奏已重置。<br>現在是使用 <b>Reset Oil</b> 鎖住平靜狀態的最佳時刻。";
+      } else {
+          msg = "輸出暫告一段落。<br>建議切換至 <b>RESET</b> 模式進行 5 分鐘的神經系統冷卻。";
+      }
+      doneText.innerHTML = msg;
+      doneText.classList.add('show');
+  }
+
+  startPauseBtn.addEventListener('click', () => {
+      if(running) pause();
+      else start();
+  });
+  
+  $('#saveNoteBtn').addEventListener('click', () => {
+     const txt = $('#noteText').value;
+     if(!txt) return;
+     const div = document.createElement('div');
+     div.textContent = `• ${new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} ${txt}`;
+     $('#noteList').prepend(div);
+     $('#noteText').value = '';
+     $('#noteHint').textContent = 'Saved.';
+     setTimeout(() => $('#noteHint').textContent = '結束後紀錄', 2000);
+  });
+
+  updateDisplay();
+})();
+</script>
